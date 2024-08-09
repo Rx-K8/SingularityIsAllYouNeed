@@ -25,12 +25,6 @@ dockerイメージをDocker Hubから入手してsandboxコンテナにする．
 $ singularity build --sandbox [sandboxコンテナ名] docker://[dockerイメージ名]
 ```
 
-例として，pytorchが提供しているdockerイメージからsandboxコンテナを作成する方法を示す．
-
-```sh
-$ singularity build -s pytorch_edit docker://pytorch/pytorch:2.2.2-cuda11.8-cudnn8-devel
-```
-
 #### 1.1.2 Singularity Image Fileからsandboxコンテナを作成
 Singularity Image File（以降，SIF）からsandboxコンテナを作成する．
 SIFは，dockerのイメージに相当する．
@@ -69,6 +63,10 @@ sandboxコンテナからsifファイルに変化するには以下のとおり�
 ```sh
 $ singularity build [sifファイル名].sif [sandboxコンテナ（ディレクトリ）名]
 ```
+
+### 1.5 実際にやってみる
+コンテナイメージをカスタマイズして利用する方法を実際にやってみる．
+NVIDIA
 
 ## 2. コンテナイメージを少し変更して環境構築
 読み込み専用になっていないところの変更であれば，sandboxコンテナを作成しなくても，環境構築ができる．
@@ -216,6 +214,5 @@ $ singularity shell --fakeroot --shell /bin/bash --no-home [コンテナ名]
 
   ```sh
   # コンテナ内の.bashrcを読み込む．-fオプションは必須
-  $ $ singularity exec -f --no-home [コンテナ名] bash
+  $ singularity exec -f --no-home [コンテナ名] bash
   ```
-
