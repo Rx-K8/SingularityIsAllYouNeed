@@ -117,13 +117,66 @@ $ singularity build --fakeroot --build-arg python_version="3.11.9" practice.sif 
 しかし，実行時にパッケージが足りていないなどのエラーが出た場合，イメージを作り直す必要があるので時間がかかる．
 柔軟性の面では，sandboxコンテナを使うほうがよい．
 
-## 躓いたこと
+## その他
+### おすすめオプション
+
+```sh
+$ singularity shell --shell /bin/bash -f --no-home --nv [コンテナ名]
+```
+
+### --fakeroot(-f)の動作
+--fakerootありとなしのコンテナ内のホームディレクトリ(\$HOME)に違いが生まれる．
+--fakerootありだと，コンテナ内のホームディレクトリは"/root"になっていた．
+その/rootは，ホスト上の\$HOMEがマウントされていた．
+```sh
+$ singularity shell -f [コンテナ名]
+Singularity> echo $HOME
+/root
+Singularity> ls -a $HOME
+ホスト上のホームディレクトリ直下にあるディレクトリやファイルが表示される
+```
+
+--fakerootなしだと，コンテナ内のホームディレクトリは"/home/ユーザ名"，つまり，ホスト上のホームディレクトリになっていた．
+```sh
+$ singularity shell [コンテナ名]
+Singularity> echo $HOME
+/home/ユーザ名
+Singularity> ls -a $HOME
+ホスト上のホームディレクトリ直下にあるディレクトリやファイルが表示される
+```
+
+結局のところ，コンテナ内のホームディレクトリは，--fの有無で変わらない．
+
+しかし，--fakerootと--no-homeを組み合わせて使う場合に，ややこしくなる．
+--fakerootと--no-homeありだと，コンテナ内のホームディレクトリは"/root"になっていた．
+その/rootは，コンテナ内の/rootがマウントされていた．
+```sh
+$ singularity shell --no-home -f [コンテナ名]
+Singularity> echo $HOME
+/root
+Singularity> ls -a $HOME
+コンテナ内の/root直下にあるディレクトリやファイルが表示される
+```
+
+--no-homeだと，コンテナ内のホームディレクトリは"/home/ユーザ名"，つまり，ホスト上のホームディレクトリになっていた．
+しかし，ホスト上のホームディレクトリをマウントしていないため，何も存在しない．
+厳密には，コンテナがあるディレクトリは存在する．
+```sh
+$ singularity shell --no-home [コンテナ名]
+Singularity> echo $HOME
+/home/keito_fukuoka
+Singularity> ls -a $HOME
+マウントしていないため，ホスト上のホームディレクトリ直下にあるディレクトリやファイルが表示されない．
+厳密には，コンテナがあるディレクトリは表示される．
+```
+
 ### bashrcの読み込み
 "singurarity shell"を実行することで，コンテナ内に新しいシェルを生成し，仮想マシンのように操作することができる．
 しかし，このままコンテナ内に入ると，.bashrcは読み込まれない．
 それは，singularityはnorcオプションを使用して，bashが.bashrcを読み込むのを防いでいる([参照](https://github.com/apptainer/singularity/issues/4808))．
 norcオプションを使用しないようにするには，-s(--shell)で指定する必要がある．
-それに加えて，-f(--fakeroot)でroot権限を与える必要もある（なぜ，-fオプションが必要か不明）．
+それに加えて，-f(--fakeroot)でroot権限を与える必要もある．
+先ほど説明したように，--fakeroot有無，--no-homeとの組み合わせで\$HOMEのディレクトリが変わるので注意が必要である．
 
 次のコマンドで，**ホスト上**の.bashrcを読み込むことが可能になる．
 ```sh
@@ -132,7 +185,7 @@ $ singularity shell --fakeroot --shell /bin/bash [コンテナ名]
 
 しかし，**コンテナ内**に存在する.bashrcを読み込みたいときもある．
 その際は，--no-homeオプションをつけることで実現できる．
---no-homeオプションは，$HOMEディレクトリをマウントせずに現在の作業ディレクトリをマウントできる（[参照](https://docs.sylabs.io/guides/4.0/user-guide/bind_paths_and_mounts.html#no-home)）．
+--no-homeオプションは，\$HOMEディレクトリをマウントせずに現在の作業ディレクトリをマウントできる（[参照](https://docs.sylabs.io/guides/4.0/user-guide/bind_paths_and_mounts.html#no-home)）．
 
 次のコマンドで，**コンテナ内**の.bashrcを読み込むことが可能になる．
 ```sh
@@ -166,16 +219,3 @@ $ singularity shell --fakeroot --shell /bin/bash --no-home [コンテナ名]
   $ $ singularity exec -f --no-home [コンテナ名] bash
   ```
 
-<!-- 
-## 個人的知見
-
-### buildコマンド
-2つの異なる形式でコンテナを作成できる．
-- Singularity Image File(SIF): 圧縮された読み取り専用．
-- 書込み可能な(ch)rootディレクトリであるサンドボックスを使用したインタラクティブな開発用．
-
-#### sandboxオプション
-書込み可能なディレクトリ（サンドボックス）内にコンテナを作成する場合，--sandboxオプションを使用して作成できる．
-サンドボックスコンテナ内で永続的な変更を行うには，コンテナを起動する際に，--writableフラグを使用する．
-変更するファイルとディレクトリにアクセスする権限が必要なとき，rootとして実行することを推奨する．
-そしくは，--fakerootを使用することがよい． -->
