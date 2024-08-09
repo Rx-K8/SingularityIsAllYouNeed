@@ -2,9 +2,14 @@
 
 🚧 作成中
 
-⚠️ 動かない可能性大
+⚠️ フィードバック歓迎
 
-## 1. コンテナイメージ自体をカスタマイズして利用する
+## 1. コンテナイメージをカスタマイズして利用する
+対話的にコンテナの環境を構築する方法である．
+再現性がない方法になるので，SingularityCE Definition File（以降，SDF）を作成することが好ましい．
+しかし，足りないパッケージをその場でインストールできるので，SDFより柔軟に環境構築ができる．
+手順は次のとおりになる．
+
 sandboxコンテナを作成する．
 sandoboxコンテナを作成後は，2つの起動方法を使い分ける．
 - 環境構築をしたいときは，書き込みオプション(--writable)をつけて起動する．
@@ -26,9 +31,9 @@ $ singularity build --sandbox [sandboxコンテナ名] docker://[dockerイメー
 $ singularity build -s pytorch_edit docker://pytorch/pytorch:2.2.2-cuda11.8-cudnn8-devel
 ```
 
-#### 1.1.2 sifファイルからsandboxコンテナを作成
-sifファイルからsandboxコンテナを作成する．
-sifファイルは，dockerのイメージに当たる．
+#### 1.1.2 Singularity Image Fileからsandboxコンテナを作成
+Singularity Image File（以降，SIF）からsandboxコンテナを作成する．
+SIFは，dockerのイメージに相当する．
 
 ```sh
 singularity build --sandbox [sandboxコンテナ名] [sifファイル名].sif
@@ -64,6 +69,102 @@ sandboxコンテナからsifファイルに変化するには以下のとおり�
 ```sh
 $ singularity build [sifファイル名].sif [sandboxコンテナ（ディレクトリ）名]
 ```
+
+## 2. コンテナイメージを少し変更して環境構築
+読み込み専用になっていないところの変更であれば，sandboxコンテナを作成しなくても，環境構築ができる．
+例えば，「pipでパッケージをインストール」が当てはまる．
+ただし，pipでのパッケージのインストール先が読み込み専用になっていれば，不可能である．
+pytorchやpythonが公式で提供しているdockerイメージをSIFに変更したのであれば，pipでパッケージをインストールすることができた．
+以下に，例を示す．
+
+dockerイメージからSIFを作成する．
+```sh
+$ singularity build python.sif docker:python:3.11-alpine3.18
+```
+
+対話モードでコンテナにログインする．
+```sh
+$ singularity shell python.sif
+```
+
+pipでパッケージをインストールする．
+
+```sh
+$ pip install numpy
+```
+
+## 3 SingularityCE definition fileでSIFを作成
+⚠ CreateSIF.defは動作が不安定である．自己責任で使ってください．
+
+
+defファイルはdockerfileと近い．
+具体的な作り方は，dockerイメージをベースとしたdefファイル"CreateSIF.def"を参考にしてほしい．
+細かい作り方は，[公式ドキュメント](https://docs.sylabs.io/guides/4.0/user-guide/definition_files.html)を参照．
+sifファイルを作成するには，以下のとおりである．
+
+```sh
+$ singularity build [sifファイル名].sif [defファイル名].def
+```
+
+ソフトウェアをインストールにroot権限が必要な場合は，sudoや--fakerootモードを使う．
+"CreateSIF.def"はroot権限が必要なので，--fakerootモードを使う．
+
+```sh
+$ singularity build --fakeroot --build-arg python_version="3.11.9" practice.sif CreateSIF.def
+```
+
+こちらは，sandboxに比べ，再現性がある方法になる．
+しかし，実行時にパッケージが足りていないなどのエラーが出た場合，イメージを作り直す必要があるので時間がかかる．
+柔軟性の面では，sandboxコンテナを使うほうがよい．
+
+## 躓いたこと
+### bashrcの読み込み
+"singurarity shell"を実行することで，コンテナ内に新しいシェルを生成し，仮想マシンのように操作することができる．
+しかし，このままコンテナ内に入ると，.bashrcは読み込まれない．
+それは，singularityはnorcオプションを使用して，bashが.bashrcを読み込むのを防いでいる([参照](https://github.com/apptainer/singularity/issues/4808))．
+norcオプションを使用しないようにするには，-s(--shell)で指定する必要がある．
+それに加えて，-f(--fakeroot)でroot権限を与える必要もある（なぜ，-fオプションが必要か不明）．
+
+次のコマンドで，**ホスト上**の.bashrcを読み込むことが可能になる．
+```sh
+$ singularity shell --fakeroot --shell /bin/bash [コンテナ名]
+```
+
+しかし，**コンテナ内**に存在する.bashrcを読み込みたいときもある．
+その際は，--no-homeオプションをつけることで実現できる．
+--no-homeオプションは，$HOMEディレクトリをマウントせずに現在の作業ディレクトリをマウントできる（[参照](https://docs.sylabs.io/guides/4.0/user-guide/bind_paths_and_mounts.html#no-home)）．
+
+次のコマンドで，**コンテナ内**の.bashrcを読み込むことが可能になる．
+```sh
+$ singularity shell --fakeroot --shell /bin/bash --no-home [コンテナ名]
+```
+
+それ以外にも以下のようにして.bashrcを読み込むことができる．
+
+- singularity shellで入ったあと，bashで更に入る．
+  ```sh
+  # ホスト上の.bashrcを読み込む．-fオプションはなくてもあってもよい．
+  $ singularity shell [コンテナ名]
+  Singularity> bash
+  ```
+
+  ```sh
+  # コンテナ内の.bashrcを読み込む．-fオプションは必須
+  $ singularity shell --no-home -f [コンテナ名]
+  Singularity> bash
+  ```
+
+- 現在のシェルプロセスを新しいシェルで置き換える．
+
+  ```sh
+  # ホスト上の.bashrcを読み込む．-fオプションはなくてもあってもよい．
+  $ singularity exec [コンテナ名] bash
+  ```
+
+  ```sh
+  # コンテナ内の.bashrcを読み込む．-fオプションは必須
+  $ $ singularity exec -f --no-home [コンテナ名] bash
+  ```
 
 <!-- 
 ## 個人的知見
