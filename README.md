@@ -178,7 +178,7 @@ $ pip install numpy
 $ pip list
 ```
 
-## 3 SingularityCE definition fileでSIFを作成
+## 3 SDFからSIFを作成する
 ⚠ CreateSIF.defは動作が不安定である．自己責任で使ってください．
 
 SDFはdockerfileと近い．
