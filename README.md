@@ -17,20 +17,20 @@ sandoboxコンテナを作成後は，2つの起動方法を使い分ける．
 
 両方のオプションをつけると起動できるが，GPUを認識しないため，2つのオプションを使い分ける必要がある．
 
-### 1.1 sandboxコンテナ作成
-#### 1.1.1 dockerイメージからsandboxコンテナを作成
+### 1.1 sandboxコンテナ作成する
+#### 1.1.1 dockerイメージからsandboxコンテナを作成する
 dockerイメージをDocker Hubから入手してsandboxコンテナにする．
 
 ```sh
 $ singularity build --sandbox [sandboxコンテナ名] docker://[dockerイメージ名]
 ```
 
-#### 1.1.2 Singularity Image Fileからsandboxコンテナを作成
+#### 1.1.2 Singularity Image Fileからsandboxコンテナを作成する
 Singularity Image File（以降，SIF）からsandboxコンテナを作成する．
 SIFは，dockerのイメージに相当する．
 
 ```sh
-singularity build --sandbox [sandboxコンテナ名] [sifファイル名].sif
+singularity build --sandbox [sandboxコンテナ名] [SIF名].sif
 ```
 
 ### 1.2 書き込みオプションを付けてコンテナを起動する
@@ -56,16 +56,102 @@ GPUを使うためには，--nvオプションを付けて起動する．
 $ singularity shell --nv [sandboxコンテナ名]
 ```
 
-### 1.4 sandboxコンテナをsifファイルに変換
-別の環境にsandboxコンテナを使いたい場合，sifファイルを共有するのが（たぶん）一般的である．
-sandboxコンテナからsifファイルに変化するには以下のとおりである．
+### 1.4 sandboxコンテナをSIFに変換する
+別の環境にsandboxコンテナを使いたい場合，SIFを共有するのが（たぶん）一般的である．
+sandboxコンテナからSIFに変化するには以下のとおりである．
 
 ```sh
-$ singularity build [sifファイル名].sif [sandboxコンテナ（ディレクトリ）名]
+$ singularity build [SIF名].sif [sandboxコンテナ（ディレクトリ）名]
 ```
 
 ### 1.5 実際にやってみる
 コンテナイメージをカスタマイズして利用する方法を実際にやってみる．
+NVIDIA社が公開しているDockerイメージを使って，pytorchで学習できるようにする．
+CUDA周りはバージョンがシビアである．
+ここでは，説明しないが，[解説している記事](https://qiita.com/ketaro-m/items/4de2bd3101bcb6a6b668)もあるのでそちらを参考に．
+
+#### 1.5.1 dockerイメージからsandboxコンテナを作成する
+
+```sh
+# sandboxコンテナ外
+$ singularity build --sandbox practice docker://nvidia/cuda:12.1.1-cudnn8-devel-ubuntu22.04
+```
+
+#### 1.5.2 sandboxコンテナ環境を構築する
+sandboxコンテナを起動する．
+いろんなオプションをつけている．
+[その他](##その他)を参照してください．
+
+```sh
+# sandboxコンテナ外
+$ singularity shell -w -f --no-home -s /bin/bash practice
+```
+
+必要なものをインストール，設定する．
+
+```sh
+# sandboxコンテナ内
+$ echo 'export LANG=ja_JP.UTF-8' >> $HOME/.bashrc
+$ apt update
+$ apt install -y locales-all language-pack-ja-base build-essential libssl-dev zlib1g-dev liblzma-dev libreadline-dev libbz2-dev libsqlite3-dev libffi-dev libncurses-dev wget curl git zip unzip
+$ echo '. "$HOME/.asdf/asdf.sh"' >> $HOME/.bashrc
+$ echo '. "$HOME/.asdf/completions/asdf.bash"' >> $HOME/.bashrc
+$ git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.14.0
+$ exit
+
+# sandboxコンテナ外
+$ singularity shell -w -f --no-home -s /bin/bash practice
+
+# sandboxコンテナ内
+$ asdf plugin-add python
+$ asdf install python 3.11.9
+$ asdf global python 3.11.9
+$ pip install torch==2.2.2 torchvision==0.17.2 torchaudio==2.2.2 --index-url https://download.pytorch.org/whl/cu121
+```
+
+#### 1.5.3 sandboxコンテナ内でpythonファイルを実行する
+GPUを使える環境でsandboxコンテナを起動する．
+
+```sh
+# sandboxコンテナ外
+$ singularity shell --nv -f --no-home -s /bin/bash practice
+```
+
+適当なpytorchの学習コードを用意する．
+これでGPUを使った機械学習が可能である．
+
+```sh
+# sandboxコンテナ内
+$ python train.py
+```
+
+#### 1.5.4 sandboxコンテナ外からpythonファイルを実行する
+pythonコマンドまで直書きダサい...
+pythonコマンドをパスに追加したい...
+
+```sh
+# sandboxコンテナ外
+$ singularity exec --nv -f --no-home practice /root/.asdf/shims/python train.py
+```
+
+#### 1.5.5 SIFにしてpythonファイルを実行する
+sandboxコンテナをSIFに変換する．
+
+```sh
+$ singularity build practice.sif practice
+```
+SIFを通してpythonファイル実行してみる．
+
+```sh
+$ singularity exec --nv -f --no-home practice.sif /root/.asdf/shims/python train.py
+```
+
+### 1.6 個人的な見解
+実際に，NVIDIA社が提供しているDockerイメージを使って，pytorchで機械学習してみた．
+機械学習が目的であれば，PyTorchやTensorflowを使うだろう．
+今回作成したコンテナイメージは問題点が多いのであくまで参考程度にとどめてほしい．
+特に，理由がなければ，PyTorchやTeonsorflowの公式が提供しているDockerイメージを使うことを推奨する．
+設定などめんどくさいことを省けるので．
 
 ## 2. コンテナイメージを少し変更して環境構築
 読み込み専用になっていないところの変更であれば，sandboxコンテナを作成しなくても，環境構築ができる．
@@ -79,28 +165,29 @@ dockerイメージからSIFを作成する．
 $ singularity build python.sif docker:python:3.11-alpine3.18
 ```
 
-対話モードでコンテナにログインする．
+ログインする．
 ```sh
 $ singularity shell python.sif
 ```
 
 pipでパッケージをインストールする．
+実際に，インストールされていることを確認する．
 
 ```sh
 $ pip install numpy
+$ pip list
 ```
 
 ## 3 SingularityCE definition fileでSIFを作成
 ⚠ CreateSIF.defは動作が不安定である．自己責任で使ってください．
 
-
-defファイルはdockerfileと近い．
-具体的な作り方は，dockerイメージをベースとしたdefファイル"CreateSIF.def"を参考にしてほしい．
+SDFはdockerfileと近い．
+具体的な作り方は，dockerイメージをベースとしたSDF"CreateSIF.def"を参考にしてほしい．
 細かい作り方は，[公式ドキュメント](https://docs.sylabs.io/guides/4.0/user-guide/definition_files.html)を参照．
-sifファイルを作成するには，以下のとおりである．
+SIFを作成するには，以下のとおりである．
 
 ```sh
-$ singularity build [sifファイル名].sif [defファイル名].def
+$ singularity build [SIF名].sif [SDF名].def
 ```
 
 ソフトウェアをインストールにroot権限が必要な場合は，sudoや--fakerootモードを使う．
