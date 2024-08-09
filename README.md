@@ -4,7 +4,7 @@
 
 ⚠️ 動かない可能性大
 
-## コンテナイメージ自体をカスタマイズして利用する
+## 1. コンテナイメージ自体をカスタマイズして利用する
 sandboxコンテナを作成する．
 sandoboxコンテナを作成後は，2つの起動方法を使い分ける．
 - 環境構築をしたいときは，書き込みオプション(--writable)をつけて起動する．
@@ -12,8 +12,8 @@ sandoboxコンテナを作成後は，2つの起動方法を使い分ける．
 
 両方のオプションをつけると起動できるが，GPUを認識しないため，2つのオプションを使い分ける必要がある．
 
-### dockerイメージからsandboxコンテナを作成
-
+### 1.1 sandboxコンテナ作成
+#### 1.1.1 dockerイメージからsandboxコンテナを作成
 dockerイメージをDocker Hubから入手してsandboxコンテナにする．
 
 ```sh
@@ -26,7 +26,15 @@ $ singularity build --sandbox [sandboxコンテナ名] docker://[dockerイメー
 $ singularity build -s pytorch_edit docker://pytorch/pytorch:2.2.2-cuda11.8-cudnn8-devel
 ```
 
-### 書き込みオプションを付けてコンテナを起動する
+#### 1.1.2 sifファイルからsandboxコンテナを作成
+sifファイルからsandboxコンテナを作成する．
+sifファイルは，dockerのイメージに当たる．
+
+```sh
+singularity build --sandbox [sandboxコンテナ名] [sifファイル名].sif
+```
+
+### 1.2 書き込みオプションを付けてコンテナを起動する
 --writable(-w)で書き込み可能になる．
 書き込みにはroot権限が必要になることがあるため，--fakeroot(-f)を使って起動するとよい．
 
@@ -41,7 +49,7 @@ $ singularity shell -w -f [sandboxコンテナ名]
 - aptによるパッケージのインストール
 - 読み込み専用のファイルやディレクトリの編集
 
-### GPUを使って起動する
+### 1.3 GPUを使って起動する
 GPUを使うためには，--nvオプションを付けて起動する．
 この起動方法で，実行しながらファイルを編集するとよい．
 
@@ -49,7 +57,7 @@ GPUを使うためには，--nvオプションを付けて起動する．
 $ singularity shell --nv [sandboxコンテナ名]
 ```
 
-### sandboxコンテナをsifファイルに変換
+### 1.4 sandboxコンテナをsifファイルに変換
 別の環境にsandboxコンテナを使いたい場合，sifファイルを共有するのが（たぶん）一般的である．
 sandboxコンテナからsifファイルに変化するには以下のとおりである．
 
