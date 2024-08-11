@@ -126,13 +126,33 @@ $ python train.py
 ```
 
 #### 1.5.4 sandboxコンテナ外からpythonファイルを実行する
-pythonコマンドまで直書きダサい...
-pythonコマンドをパスに追加したい...
+sandboxコンテナ外からpythonファイルを実行しようとすると以下のとおりになる．
+pythonコマンドまでのパスをフルパスで書いており，冗長である．
+"/root/.asdf/shims/python"でなく，"python"だけでコマンドを叩くためには，環境変数PATHに追加する必要がある．
 
 ```sh
 # sandboxコンテナ外
 $ singularity exec --nv -f --no-home practice /root/.asdf/shims/python train.py
 ```
+
+そこで，**sandboxコンテナ内**のenviromentファイル(/enviroment)に以下を記述する．
+これで，pythonコマンドの実行が可能になる．
+
+```sh
+# envirimentファイル内
+PATH="${PATH}:${HOME}/.asdf/shims"
+```
+
+これにより，以下のように実行できる．
+
+```sh
+# sandboxコンテナ外
+$ singularity exec --nv -f --no-home practice python train.py
+```
+
+ここで，bashrcに記述すればよいと思うかもしれない．
+[その他](##その他)に詳しく説明するが，"singularity exec"はbashrcを読み込まないようになっている．
+そのため，bashrc内で環境変数PATHを変更したところで意味がなく，enviromentファイルに書き込むようにしている．
 
 #### 1.5.5 SIFにしてpythonファイルを実行する
 sandboxコンテナをSIFに変換する．
@@ -143,7 +163,7 @@ $ singularity build practice.sif practice
 SIFを通してpythonファイル実行してみる．
 
 ```sh
-$ singularity exec --nv -f --no-home practice.sif /root/.asdf/shims/python train.py
+$ singularity exec --nv -f --no-home practice.sif python train.py
 ```
 
 ### 1.6 個人的な見解
